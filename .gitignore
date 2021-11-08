@@ -1,28 +1,12 @@
-input_data
+slurms
 output_data
-plots
-.idea
-k_tools/__pycache__
+cluster_scripts
 
 *.pyd
 *.pyc
 *.pyo
 
 model_code/__pycache__
-
-# PyCharm stuffs
-.idea/
-
-# coverage stuffs
-.coverage
-
-# Notebook stuffs
-examples/*checkpoints
-.ipynb_checkpoints
-
-# Tests stuffs
-result_images
-.pytest_cache
 
 # Packages
 *.egg
@@ -31,4 +15,4 @@ eggs
 
 # specific
 *.cache
-oggmcontrib/version.py
+config.ini
