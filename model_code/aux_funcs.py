@@ -530,12 +530,9 @@ def sia_thickness_via_optim_wt(slope, width, flux, rel_h, a_factor,
 
     def to_minimize(h):
         u_drag = (rho * cfg.G * slope * h * a_factor)**n * h * fd
-        # u_slide = ((rho * cfg.G * slope * h * a_factor)**n * fs / 
-                   # (utils.clip_min(10, h - (1028/rho) * water_depth)))
         u_slide = (rho * cfg.G * slope * a_factor)**n * fs * h**(n-1) * rel_h
         u = u_drag + u_slide
-        #u = ((h ** (n + 1)) * fd * rhogh + ((h ** n) / (utils.clip_min(10, h -
-        #     (1028/rho) * water_depth))) * fs * rhogh)
+        
         if shape == 'parabolic':
             sect = 2./3. * width * h
         elif shape == 'trapezoid':
@@ -598,8 +595,7 @@ def sia_thickness_wt(slope, width, flux, rel_h, a_factor, #water_depth, f_b,
     # Polynomial factors (a5 = 1)
     a0 = - flux_a0 / ((rho * cfg.G * slope * a_factor) ** 3 * fd)
     #a3 = fs / fd
-    # a3 = (fs / fd) * ((water_depth+f_b) / utils.clip_min(10,(water_depth+f_b) -
-                      # (1028/rho)*water_depth))# * a_factor    
+
     a3 = (fs / fd) * rel_h
 
     # Inversion with shape factors?
@@ -705,7 +701,9 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
         k = 0
         h_diff = np.ones(slope.shape)
         a0s = - cl['flux_a0'] / ((rho*cfg.G*slope)**3*fd)
-        out_thick = _compute_thick_wt(a0s, a3, cl['flux_a0'], sf, _inv_function) 
+        out_thick = _compute_thick_wt(a0s, a3, cl['flux_a0'], sf, _inv_function)
+        # Iteratively seeking glacier state including water-depth dependent
+        # processes
         while k < max_iter and np.any(h_diff > h_tol):
             h_diff = out_thick
             bed_h = cl['hgt']-out_thick
@@ -737,7 +735,8 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
             a_factor = (a_pull / (rho*cfg.G*slope*out_thick)) + 1
             a_factor = np.nan_to_num(a_factor, nan=1, posinf=1, neginf=1)
             a0s = - cl['flux_a0'] / ((rho*cfg.G*slope*a_factor)**3*fd)
-            out_thick = _compute_thick_wt(a0s, a3s, cl['flux_a0'], sf, _inv_function)
+            out_thick = _compute_thick_wt(a0s, a3s, cl['flux_a0'], sf, 
+                                          _inv_function)
 
             if sf_func is not None:
 
@@ -787,7 +786,8 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
                                                                t_lambda=t_lambda,
                                                                glen_a=glen_a,
                                                                fs=fs)
-                        sect = (2*w[i] - t_lambda * out_thick[i]) / 2 * out_thick[i]
+                        sect = ((2*w[i] - t_lambda * out_thick[i]) / 2 * 
+                                out_thick[i])
                         volume[i] = sect * cl['dx']
                     except ValueError:
                         # no solution error - we do with rect
@@ -831,8 +831,7 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
                                                         cl['is_rectangular'],
                                                         cl['is_trapezoid'],
                                                         fac, t_lambda,
-                                                        cl['dx'],
-                                                        water_level)
+                                                        cl['dx'], water_level)
             except KeyError:
                 # cl['hgt'] is not available on old prepro dirs
                 pass
@@ -902,359 +901,6 @@ def inversion_tasks(gdirs, glen_a=None, fs=None, filter_inversion_output=True,
         if filter_inversion_output:
             execute_entity_task(tasks.filter_inversion_output, gdirs)
 
-@entity_task(log, writes=['diagnostics'])
-def match_geodetic_mb_for_glacier(gdir, period='2000-01-01_2020-01-01',
-                                  file_path=None, fail_safe=True,
-                                  include_calving=True, corr_factor=1):
-    """Shift the mass-balance residual to match geodetic mb observations.
-
-    It is similar to match_regional_geodetic_mb but uses the raw, glacier
-    per glacier tabular data.
-
-    This method finds the "best mass-balance residual" to match all glaciers in
-    gdirs with available OGGM mass balance and available geodetic mass-balance
-    measurements from Hugonnet 2021 or any other file with the same format.
-
-    The default is to use hugonnet_2021_ds_rgi60_pergla_rates_10_20_worldwide_filled.hdf
-    in  https://cluster.klima.uni-bremen.de/~oggm/geodetic_ref_mb/
-
-    Parameters
-    ----------
-    gdirs : the list of gdirs
-    period : str
-       One of
-       '2000-01-01_2020-01-01',
-       '2000-01-01_2010-01-01',
-       '2010-01-01_2020-01-01'.
-    file_path: str
-       local file path to tabular file containing geodetic measurements, file must
-       contain the columns:
-           - 'rgiid': is the RGIId as in the RGI 6.0
-           - 'period': time intervall of the measurements in the format shown
-             above
-           - 'dmdtda': the specific-mass change rate in meters water-equivalent
-             per year,
-           - 'area': is the glacier area (same as in RGI 6.0) in meters square
-    fail_safe : bool
-        some glaciers in the obs data have been corrected with the regional
-        average. We don't use these values, unless there is no other choice and
-        in which case you can set fail_safe to True
-    """
-
-    # Get the mass-balance OGGM would give out of the box
-    df = utils.compile_fixed_geometry_mass_balance(gdir, path=False)
-    df = df.dropna(axis=0, how='all').dropna(axis=1, how='all')
-
-    # And also the Area and calving fluxes
-    dfs = utils.compile_glacier_statistics(gdir, path=False)
-
-    y0 = int(period.split('_')[0].split('-')[0])
-    y1 = int(period.split('_')[1].split('-')[0]) - 1
-
-    odf = pd.DataFrame(df.loc[y0:y1].mean(), columns=['SMB'])
-
-    odf['AREA'] = dfs.rgi_area_km2 * 1e6
-    # Just take the calving rate and change its units
-    # Original units: km3 a-1, to change to mm a-1 (units of specific MB)
-    rho = cfg.PARAMS['ice_density']
-    if 'calving_flux' in dfs and include_calving:
-        odf['CALVING'] = dfs['calving_flux'].fillna(0) * 1e9 * rho / odf['AREA']
-    else:
-        odf['CALVING'] = 0
-    
-    # We have to drop nans here, which occur when calving glaciers fail to run
-    odf = odf.dropna()
-
-    # save all rgi_ids for which a valid OGGM mb is available
-    rgi_ids_oggm = odf.index.values
-
-    # fetch the file online or read custom file
-    if file_path is None:
-        base_url = 'https://cluster.klima.uni-bremen.de/~oggm/geodetic_ref_mb/'
-        file_name = 'hugonnet_2021_ds_rgi60_pergla_rates_10_20_worldwide_filled.hdf'
-        df = pd.read_hdf(utils.file_downloader(base_url + file_name))
-    else:
-        extension = os.path.splitext(file_path)[1]
-        if extension == '.csv':
-            df = pd.read_csv(file_path, index_col='rgiid')
-        elif extension == '.hdf':
-            df = pd.read_hdf(file_path, index_col='rgiid')
-
-    # get the correct period from the whole dataset
-    df = df.loc[df['period'] == period]
-
-    # get only geodetic measurements for which a valid OGGM mb is available
-    rdf_all = df.loc[rgi_ids_oggm]
-    if rdf_all.empty:
-        raise InvalidWorkflowError('No geodetic MB measurements available for '
-                                   'this glacier selection!')
-
-    # drop glaciers with no valid geodetic measurements
-    rdf = rdf_all.loc[~rdf_all['is_cor']]
-    if rdf.empty:
-        if not fail_safe:
-            raise InvalidWorkflowError('No gedoetic MB measurements available for '
-                                       'this glacier selection! Set '
-                                       'fail_safe=True to use the '
-                                       'corrected values.')
-        rdf = rdf_all
-
-    # the remaining glaciers now have a OGGM mb and geodetic measurements
-    rgi_ids = rdf.index.values
-    msg = ('Applying geodetic MB correction for {}')
-    log.workflow(msg.format(rgi_ids))
-
-    # Total MB OGGM, only using glaciers with OGGM mb and geodetic measurements
-    odf = odf.loc[rgi_ids]
-    out_smb = np.average(odf['SMB'], weights=odf['AREA'])  # for logging
-    out_cal = np.average(odf['CALVING'], weights=odf['AREA'])  # for logging
-    smb_oggm = np.average(odf['SMB'] - odf['CALVING'], weights=odf['AREA'])
-
-    # Total geodetic MB, no need for indexing
-    smb_ref = rdf.dmdtda.values * 1000 # m to mm conversion
-    area_ref = rdf.area.values
-    smb_ref = np.average(smb_ref, weights=area_ref) * corr_factor
-
-    # Diff between the two
-    residual = smb_ref - smb_oggm
-
-    # Let's just shift
-    # log.workflow('Shifting glacier MB bias by {}'.format(residual))
-    # log.workflow('Observations give {}'.format(smb_ref))
-    # log.workflow('OGGM SMB gives {}'.format(out_smb))
-    # log.workflow('OGGM frontal ablation gives {}'.format(out_cal))
-
-    # This time we shift over all glaciers
-    try:
-        df = gdir.read_json('local_mustar')
-        gdir.add_to_diagnostics('mb_bias_before_geodetic_corr', df['bias'])
-        df['bias'] = df['bias'] - residual
-        gdir.write_json(df, 'local_mustar')
-    except FileNotFoundError:
-        pass
-
-@utils.global_task(log)
-def calibrate_inversion_from_consensus_fs(gdirs, ignore_missing=True, 
-                                          fs=1e-20,
-                                          fs_bounds=(0.1,100), a=2.4e-24,
-                                          error_on_mismatch=True,
-                                          filter_inversion_output=True):
-    """Fit the total volume of the glaciers to the 2019 consensus estimate.
-
-    This method finds the "best Glen A" to match all glaciers in gdirs with
-    a valid inverted volume.
-
-    Parameters
-    ----------
-    gdirs : list of :py:class:`oggm.GlacierDirectory` objects
-        the glacier directories to process
-    ignore_missing : bool
-        set this to true to silence the error if some glaciers could not be
-        found in the consensus estimate.
-    fs : float
-        invert with sliding (default: no)
-    a_bounds: tuple
-        factor to apply to default A
-    apply_fs_on_mismatch: false
-        on mismatch, try to apply an arbitrary value of fs (fs = 5.7e-20 from
-        Oerlemans) and try to optimize A again.
-    error_on_mismatch: bool
-        sometimes the given bounds do not allow to find a zero mismatch:
-        this will normally raise an error, but you can switch this off,
-        use the closest value instead and move on.
-    filter_inversion_output : bool
-        whether or not to apply terminus thickness filtering on the inversion
-        output (needs the downstream lines to work).
-
-    Returns
-    -------
-    a dataframe with the individual glacier volumes
-    """
-
-    gdirs = utils.tolist(gdirs)
-
-    # Get the ref data for the glaciers we have
-    df = pd.read_hdf(utils.get_demo_file('rgi62_itmix_df.h5'))
-    rids = [gdir.rgi_id for gdir in gdirs]
-
-    found_ids = df.index.intersection(rids)
-    if not ignore_missing and (len(found_ids) != len(rids)):
-        raise InvalidWorkflowError('Could not find matching indices in the '
-                                   'consensus estimate for all provided '
-                                   'glaciers. Set ignore_missing=True to '
-                                   'ignore this error.')
-
-    df = df.reindex(rids)
-
-    # Optimize the diff to ref
-    def_a = a
-    def_fs = fs
-
-    def compute_vol(x):
-        inversion_tasks(gdirs, glen_a=def_a, fs=x*def_fs,
-                        filter_inversion_output=filter_inversion_output)
-        odf = df.copy()
-        odf['oggm'] = execute_entity_task(tasks.get_inversion_volume, gdirs)
-        return odf.dropna()
-
-    def to_minimize(x):
-        log.workflow('Consensus estimate optimisation with '
-                     'A: {} and fs factor: {}'.format(a, x))
-        odf = compute_vol(x)
-        return odf.vol_itmix_m3.sum() - odf.oggm.sum()
-
-    try:
-        out_fac, r = optimize.brentq(to_minimize, *fs_bounds, rtol=1e-2,
-                                     full_output=True)
-        if r.converged:
-            log.workflow('calibrate_inversion_from_consensus '
-                         'converged after {} iterations and Glen A={}. The '
-                         'resulting fs factor is {}.'
-                         ''.format(r.iterations, a, out_fac))
-        else:
-            raise ValueError('Unexpected error in optimization.brentq')
-            
-    except ValueError:
-        # Ok can't find an A. Log for debug:
-        odf1 = compute_vol(fs_bounds[0]).sum() * 1e-9
-        odf2 = compute_vol(fs_bounds[1]).sum() * 1e-9
-        msg = ('calibration from consensus estimate CANT converge with Glen A={}.\n'
-               'Bound values (km3):\nRef={:.3f} OGGM={:.3f} for fs factor {}\n'
-               'Ref={:.3f} OGGM={:.3f} for fs factor {}'
-               ''.format(a,
-                         odf1.vol_itmix_m3, odf1.oggm, fs_bounds[0],
-                         odf2.vol_itmix_m3, odf2.oggm, fs_bounds[1]))
-        if error_on_mismatch:
-            raise ValueError(msg)
-
-        out_fac = fs_bounds[int(abs(odf1.vol_itmix_m3 - odf1.oggm) >
-                               abs(odf2.vol_itmix_m3 - odf2.oggm))]
-        log.workflow(msg)
-        log.workflow('We use fs factor = {} and Glen A = {} and move on.'
-                     ''.format(out_fac, def_a))
-
-    # Compute the final volume with the correct A
-    inversion_tasks(gdirs, glen_a=def_a, fs=out_fac*def_fs,
-                    filter_inversion_output=filter_inversion_output)
-    df['vol_oggm_m3'] = execute_entity_task(tasks.get_inversion_volume, gdirs)
-    return df
-
-@utils.global_task(log)
-def calibrate_inversion_from_consensus(gdirs, ignore_missing=True,
-                                       fs=0, a_bounds=(0.01, 1),
-                                       apply_fs_on_mismatch=False,
-                                       error_on_mismatch=True,
-                                       filter_inversion_output=True):
-    """Fit the total volume of the glaciers to the 2019 consensus estimate.
-
-    This method finds the "best Glen A" to match all glaciers in gdirs with
-    a valid inverted volume.
-
-    Parameters
-    ----------
-    gdirs : list of :py:class:`oggm.GlacierDirectory` objects
-        the glacier directories to process
-    ignore_missing : bool
-        set this to true to silence the error if some glaciers could not be
-        found in the consensus estimate.
-    fs : float
-        invert with sliding (default: no)
-    a_bounds: tuple
-        factor to apply to default A
-    apply_fs_on_mismatch: false
-        on mismatch, try to apply an arbitrary value of fs (fs = 5.7e-20 from
-        Oerlemans) and try to optimize A again.
-    error_on_mismatch: bool
-        sometimes the given bounds do not allow to find a zero mismatch:
-        this will normally raise an error, but you can switch this off,
-        use the closest value instead and move on.
-    filter_inversion_output : bool
-        whether or not to apply terminus thickness filtering on the inversion
-        output (needs the downstream lines to work).
-
-    Returns
-    -------
-    a dataframe with the individual glacier volumes
-    """
-
-    gdirs = utils.tolist(gdirs)
-
-    # Get the ref data for the glaciers we have
-    df = pd.read_hdf(utils.get_demo_file('rgi62_itmix_df.h5'))
-    rids = [gdir.rgi_id for gdir in gdirs]
-
-    found_ids = df.index.intersection(rids)
-    if not ignore_missing and (len(found_ids) != len(rids)):
-        raise InvalidWorkflowError('Could not find matching indices in the '
-                                   'consensus estimate for all provided '
-                                   'glaciers. Set ignore_missing=True to '
-                                   'ignore this error.')
-
-    df = df.reindex(rids)
-
-    # Optimize the diff to ref
-    def_a = cfg.PARAMS['inversion_glen_a']
-
-    def compute_vol(x):
-        inversion_tasks(gdirs, glen_a=x*def_a, fs=fs,
-                        filter_inversion_output=filter_inversion_output)
-        odf = df.copy()
-        odf['oggm'] = execute_entity_task(tasks.get_inversion_volume, gdirs)
-        return odf.dropna()
-
-    def to_minimize(x):
-        log.workflow('Consensus estimate optimisation with '
-                     'A factor: {} and fs: {}'.format(x, fs))
-        odf = compute_vol(x)
-        return odf.vol_itmix_m3.sum() - odf.oggm.sum()
-
-    try:
-        out_fac, r = optimize.brentq(to_minimize, *a_bounds, rtol=1e-2,
-                                         full_output=True)
-        if r.converged:
-            log.workflow('calibrate_inversion_from_consensus '
-                         'converged after {} iterations and fs={}. The '
-                         'resulting Glen A factor is {}.'
-                         ''.format(r.iterations, fs, out_fac))
-        else:
-            raise ValueError('Unexpected error in optimization.brentq')
-            
-    except ValueError:
-        # Ok can't find an A. Log for debug:
-        odf1 = compute_vol(a_bounds[0]).sum() * 1e-9
-        odf2 = compute_vol(a_bounds[1]).sum() * 1e-9
-        msg = ('calibration from consensus estimate CANT converge with fs={}.\n'
-               'Bound values (km3):\nRef={:.3f} OGGM={:.3f} for A factor {}\n'
-               'Ref={:.3f} OGGM={:.3f} for A factor {}'
-               ''.format(fs,
-                         odf1.vol_itmix_m3, odf1.oggm, a_bounds[0],
-                         odf2.vol_itmix_m3, odf2.oggm, a_bounds[1]))
-        if apply_fs_on_mismatch and fs != 0 and  odf2.oggm > odf2.vol_itmix_m3:
-            log.workflow(msg)
-            out_fac = a_bounds[int(abs(odf1.vol_itmix_m3 - odf1.oggm) >
-                                   abs(odf2.vol_itmix_m3 - odf2.oggm))]
-            return calibrate_inversion_from_consensus_fs(gdirs,a=out_fac*def_a,
-                                                         fs=fs,
-                                                         ignore_missing=\
-                                                         ignore_missing,
-                                                         error_on_mismatch=\
-                                                         error_on_mismatch)
-        if error_on_mismatch:
-            raise ValueError(msg)
-
-        out_fac = a_bounds[int(abs(odf1.vol_itmix_m3 - odf1.oggm) >
-                               abs(odf2.vol_itmix_m3 - odf2.oggm))]
-        log.workflow(msg)
-        log.workflow('We use A factor = {} and fs = {} and move on.'
-                     ''.format(out_fac, fs))
-
-    # Compute the final volume with the correct A
-    inversion_tasks(gdirs, glen_a=out_fac*def_a, fs=fs,
-                    filter_inversion_output=filter_inversion_output)
-    df['vol_oggm_m3'] = execute_entity_task(tasks.get_inversion_volume, gdirs)
-    return df
-    
-    
 @entity_task(log, writes=['inversion_flowlines'],
              fallback=climate._fallback_mu_star_calibration)
 def mu_star_calibration_from_geodetic_mb(gdir, 
@@ -1288,6 +934,11 @@ def mu_star_calibration_from_geodetic_mb(gdir,
         defaults to cfg.PARAMS['min_mu_star']
     max_mu_star: bool, optional
         defaults to cfg.PARAMS['max_mu_star']
+    corr_factor: float
+        assumed fraction of volume change below water level
+    unc: string, optional
+        flag for handling uncertainties in frontal ablation data to be able
+        to find a value for mu
     """
 
     diag = gdir.get_diagnostics()
@@ -1362,36 +1013,43 @@ def mu_star_calibration_from_geodetic_mb(gdir,
     #    raise NotImplementedError('Calving with geodetic MB is not implemented '
     #                              'yet, but it should actually work. Well keep '
     #                              'you posted!')
+    
+    # Here we add the frontal ablation and mass changes below water level to
+    # the mix, but it's dirty...
     if gdir.is_tidewater: 
         fa_will = np.genfromtxt(fa_data_path, delimiter=',', 
                                 usecols=np.arange(0, 10), dtype='unicode')
         rgi_list = fa_will[1:,0]
         rgi_id = gdir.rgi_id
-
+        idx = np.where(fa_will[:, 0] == rgi_id)
         if ref_period[:4] == '2000' and ref_period[11:15] == '2010':
-            calving_will = float(fa_will[np.where(fa_will[:, 0] == rgi_id),4])
-            terminus_change_will = (float(fa_will[np.where(fa_will[:, 0] == rgi_id),8])*
-                                    corr_factor)
-            unc_will = float(fa_will[np.where(fa_will[:, 0] == rgi_id),5])
+            calving_will = float(fa_will[idx, 4])
+            terminus_change_will = (float(fa_will[idx, 8]) * corr_factor)
+            unc_will = float(fa_will[idx, 5])
+            
         elif ref_period[:4] == '2010' and ref_period[11:15] == '2020':
-            calving_will = float(fa_will[np.where(fa_will[:, 0] == rgi_id),6])
-            terminus_change_will = (float(fa_will[np.where(fa_will[:, 0] == rgi_id),9])*
-                                    corr_factor)
-            unc_will = float(fa_will[np.where(fa_will[:, 0] == rgi_id),7])
-        if (ref_period[:4] == '2000' and ref_period[11:15] == '2020') or calving_will == 0:
-            calving_will = (float(fa_will[np.where(fa_will[:, 0] == rgi_id),6]) +
-                           float(fa_will[np.where(fa_will[:, 0] == rgi_id),4])) / 2
-            terminus_change_will = ((float(fa_will[np.where(fa_will[:, 0] == rgi_id),8])*
-                                    corr_factor) + (float(
-                                    fa_will[np.where(fa_will[:, 0] == rgi_id),9])*
-                                    corr_factor)) / 2
-            unc_will = (float(fa_will[np.where(fa_will[:, 0] == rgi_id),5])**2 + 
-                        float(fa_will[np.where(fa_will[:, 0] == rgi_id),7])**2)**0.5 / 2 
+            calving_will = float(fa_will[idx, 6])
+            terminus_change_will = (float(fa_will[idx, 9]) * corr_factor)
+            unc_will = float(fa_will[idx, 7])
+            
+        if (ref_period[:4] == '2000' and ref_period[11:15] == '2020') or \
+            calving_will == 0:
+            calving_will = (float(fa_will[idx, 6])+
+                            float(fa_will[idx, 4])) / 2
+            terminus_change_will = ((float(fa_will[idx, 8]) * 
+                                     corr_factor) + (float(fa_will[idx, 9]) * 
+                                     corr_factor) / 2)
+            unc_will = (float(fa_will[idx, 5])**2 + 
+                        float(fa_will[idx, 7])**2)**0.5 / 2 
  
+        # Shift the frontal ablation estimate, if the mu calculating function
+        # is not able to find a value. (Probably because frontal ablation
+        # estimate and geodetic mass change don't fit together.)
         if unc == 'low':
             calving_will_unc = calving_will - unc_will
             calving_will_unc = utils.clip_min(calving_will_unc, 0.1*calving_will)
-            terminus_change_will = terminus_change_will*(calving_will_unc/calving_will)
+            terminus_change_will = (terminus_change_will * 
+                                    (calving_will_unc / calving_will))
             calving_will = calving_will_unc
         if unc == 'half':
             calving_will = 0.5*calving_will
@@ -1404,7 +1062,8 @@ def mu_star_calibration_from_geodetic_mb(gdir,
             terminus_change_will = 0.01*terminus_change_will
         if unc == 'high':
             calving_will_unc = calving_will + unc_will
-            terminus_change_will = terminus_change_will*(calving_will_unc/calving_will)
+            terminus_change_will = (terminus_change_will * 
+                                    (calving_will_unc / calving_will))
             calving_will = calving_will_unc
 
         cmb = (calving_will * 1e12 / gdir.rgi_area_m2)
@@ -1587,8 +1246,8 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
         water_level = th - thick0 if thick0 > 10*th else 0
         if gdir.is_lake_terminating:
             water_level = th - cfg.PARAMS['free_board_lake_terminating']    
-    # Check that water level is within given bounds
-    # vmin, vmax = cfg.PARAMS['free_board_marine_terminating'] # BUOYANCY???
+    # Check that water level is within given bounds (deprecated!)
+    # vmin, vmax = cfg.PARAMS['free_board_marine_terminating']
     # if water_level is None:
         # th = cls['hgt'][-1]
         # if gdir.is_lake_terminating:
@@ -1603,7 +1262,6 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
     def to_minimize(rel_h):
         f_b = cls['hgt'][-1] - water_level
         thick = ((1028/900)*rel_h*f_b) / ((1028/900) * rel_h - rel_h + 1)
-        #water_depth = (thick - thick/rel_h)/(1028/900)
         water_depth = thick - f_b
         fl = calving_flux_from_depth(gdir, water_level=water_level, k=calving_k,
                                      water_depth=water_depth)
@@ -1665,6 +1323,8 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
     # if not abs_min['success']:
         # raise RuntimeError('Could not find the absolute minimum in calving '
                            # 'flux optimization: {}'.format(abs_min))
+                           
+    # Shift the water level if numerical solver can't find a value with 0
     min_wl = -thick0
     success = 0
     step = th if th > thick0 else thick0
@@ -1697,7 +1357,6 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
                 water_level += step
                 pass
         
-
     else:
         while abs_min['fun'] > 0 or success == 0:
             if water_level >= th:
@@ -1733,11 +1392,12 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
         thick = ((1028/900)*rel_h*f_b) / ((1028/900) * rel_h - rel_h + 1)
         water_depth = thick - f_b
     except:
+        # Mostly happening when front becomes very thin...
         log.workflow('inversion routine not working as expected. '
                      'We just take random values and proceed...')
         f_b = utils.clip_max(1*calving_k,0.9)
         water_level = th - f_b
-        opt = 1e2#1/(1-(900/1028))
+        opt = 1e2
         rel_h = opt        
         thick = ((1028/900)*rel_h*f_b) / ((1028/900) * rel_h - rel_h + 1)
         water_depth = thick - f_b
@@ -1771,16 +1431,17 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
     cl = gdir.read_pickle('inversion_output')[-1]
     out = calving_flux_from_depth(gdir, water_level=water_level, k=calving_k)  
 
-    out = calving_flux_from_depth(gdir, water_level=water_level, k=calving_k)
     fl = gdir.read_pickle('inversion_flowlines')[-1]
     cl = gdir.read_pickle('inversion_output')[-1]
     log.workflow('thick after: {}, {}'.format(cl['thick'][-1], out['thick']))
     f_calving = (fl.flux[-1] * (gdir.grid.dx ** 2) * 1e-9 /
                  cfg.PARAMS['ice_density'])
     
-    log.workflow('({}) found frontal thickness, water depth, free-board, water level of '
-                 '{}, {}, {}, {}'.format(gdir.rgi_id, out['thick'], out['water_depth'],out['free_board'], out['water_level']))
-    log.workflow('({}) calving (law) flux of {} ({})'.format(gdir.rgi_id, f_calving, out['flux']))
+    log.workflow('({}) found frontal thickness, water depth, free-board, water '
+                 'level of {}, {}, {}, {}'.format(gdir.rgi_id, out['thick'], 
+                 out['water_depth'],out['free_board'], out['water_level']))
+    log.workflow('({}) calving (law) flux of {} ({})'.format(gdir.rgi_id, 
+                 f_calving, out['flux']))
     # Store results
     odf = dict()
     odf['calving_flux'] = f_calving
