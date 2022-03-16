@@ -672,6 +672,7 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
     fd = 2. / (cfg.PARAMS['glen_n']+2) * glen_a
     a3 = fs / fd
     rho = cfg.PARAMS['ice_density']
+    rho_o = 1028 # Ocean density, must be >= ice density
 
     # Inversion with shape factors?
     sf_func = None
@@ -708,7 +709,7 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
             h_diff = out_thick
             bed_h = cl['hgt']-out_thick
             water_depth = utils.clip_min(0,-bed_h+water_level)
-            rel_h = out_thick / (out_thick-(1028/900)*water_depth)
+            rel_h = out_thick / (out_thick-(rho_o/rho)*water_depth)
             wrong_rel_h = ((rel_h < 1) | ~np.isfinite(rel_h))
             rel_h[wrong_rel_h & (water_depth > 0)] = min_rel_h
             rel_h[wrong_rel_h & (water_depth == 0)] = 1
@@ -719,8 +720,8 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
             stretch_dist = utils.clip_max(8e3,length)
             n_stretch = np.rint(stretch_dist/cl['dx']).astype(int)
             f_b = cl['hgt'][-1] - water_level
-            pull_stress = utils.clip_min(0,0.5 * G * (900 * out_thick[-1]**2 - 
-                                         1028 * water_depth[-1]**2))
+            pull_stress = utils.clip_min(0,0.5 * G * (rho * out_thick[-1]**2 - 
+                                         rho_o * water_depth[-1]**2))
             
             # Define stretch factor and add to driving stress
             stretch_factor = np.zeros(n_stretch)
@@ -1216,7 +1217,9 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
 
     diag = gdir.get_diagnostics()
     calving_k = diag.get('optimized_k', cfg.PARAMS['inversion_calving_k'])
-
+    rho = cfg.PARAMS['ice_density']
+    rho_o = 1028 # Ocean density, must be >= ice density
+    
     # Get the relevant variables
     cls = gdir.read_pickle('inversion_input')[-1]
     slope = cls['slope_angle'][-1]
@@ -1261,7 +1264,7 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
     # We seek the absolute minimum first
     def to_minimize(rel_h):
         f_b = cls['hgt'][-1] - water_level
-        thick = ((1028/900)*rel_h*f_b) / ((1028/900) * rel_h - rel_h + 1)
+        thick = ((rho_o/rho)*rel_h*f_b) / ((rho_o/rho) * rel_h - rel_h + 1)
         water_depth = thick - f_b
         fl = calving_flux_from_depth(gdir, water_level=water_level, k=calving_k,
                                      water_depth=water_depth)
@@ -1274,8 +1277,8 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
         stretch_dist = utils.clip_max(8e3,length)
         n_stretch = np.rint(stretch_dist/cls['dx']).astype(int)
         
-        pull_stress = utils.clip_min(0,0.5 * G * (900 * thick**2 - 
-                                     1028 * water_depth**2))
+        pull_stress = utils.clip_min(0,0.5 * G * (rho * thick**2 - 
+                                     rho_o * water_depth**2))
         
         # Define stretch factor and add to driving stress
         stretch_factor = np.zeros(n_stretch)
@@ -1286,7 +1289,7 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
             n_stretch = 1
         stretch_factor = stretch_factor[-2]    
         a_pull = (stretch_factor * (pull_stress / stretch_dist))
-        a_factor = ((a_pull / (900*cfg.G*slope*thick)) + 1)
+        a_factor = ((a_pull / (rho*cfg.G*slope*thick)) + 1)
         a_factor = np.nan_to_num(a_factor, nan=1, posinf=1, neginf=1)
         sia_thick = sia_thickness_wt(slope, width, flux, rel_h, a_factor,
                                      glen_a=glen_a, fs=fs)
@@ -1389,7 +1392,7 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
     try:
         rel_h = opt
         f_b = cls['hgt'][-1] - water_level
-        thick = ((1028/900)*rel_h*f_b) / ((1028/900) * rel_h - rel_h + 1)
+        thick = ((rho_o/rho)*rel_h*f_b) / ((rho_o/rho) * rel_h - rel_h + 1)
         water_depth = thick - f_b
     except:
         # Mostly happening when front becomes very thin...
@@ -1399,7 +1402,7 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
         water_level = th - f_b
         opt = 1e2
         rel_h = opt        
-        thick = ((1028/900)*rel_h*f_b) / ((1028/900) * rel_h - rel_h + 1)
+        thick = ((rho_o/rho)*rel_h*f_b) / ((rho_o/rho) * rel_h - rel_h + 1)
         water_depth = thick - f_b
 
     gdir.inversion_calving_rate = 0
