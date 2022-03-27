@@ -635,7 +635,7 @@ def sia_thickness_wt(slope, width, flux, rel_h=1, a_factor=1,
 @entity_task(log, writes=['inversion_output']) 
 def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
                                    filesuffix='', water_level=None,
-                                   t_lambda=None, min_rel_h=None):
+                                   t_lambda=None, min_rel_h=1):
     """ Compute the glacier thickness along the flowlines
 
     More or less following Farinotti et al., (2009).
@@ -692,8 +692,7 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
     # Clip the slope, in rad
     min_slope = 'min_slope_ice_caps' if gdir.is_icecap else 'min_slope'
     min_slope = np.deg2rad(cfg.PARAMS[min_slope])
-    if min_rel_h is None:
-        min_rel_h = 1
+
     out_volume = 0.
 
     cls = gdir.read_pickle('inversion_input')
