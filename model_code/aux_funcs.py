@@ -471,7 +471,7 @@ def _compute_thick_wt(a0s, a3, flux_a0, shape_factor, _inv_function):
 
     return out_thick
     
-def sia_thickness_via_optim_wt(slope, width, flux, rel_h, a_factor, 
+def sia_thickness_via_optim_wt(slope, width, flux, rel_h=1, a_factor=1, 
                                shape='rectangular', glen_a=None, fs=None, 
                                t_lambda=None):
     """Compute the thickness numerically instead of analytically.
@@ -546,7 +546,7 @@ def sia_thickness_via_optim_wt(slope, width, flux, rel_h, a_factor,
     out_h, r = optimize.brentq(to_minimize, 0, max_h, full_output=True)
     return out_h
 
-def sia_thickness_wt(slope, width, flux, rel_h, a_factor,
+def sia_thickness_wt(slope, width, flux, rel_h=1, a_factor=1,
                      shape='rectangular', glen_a=None, fs=None, 
                      shape_factor=None):
     """Computes the ice thickness from mass-conservation.
