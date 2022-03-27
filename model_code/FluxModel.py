@@ -146,7 +146,7 @@ class FluxBasedModelWaterFront(FlowlineModel):
         if do_kcalving is None:
             do_kcalving = cfg.PARAMS['use_kcalving_for_run']
         self.do_calving = do_kcalving and self.is_tidewater
-        #if calving_k is None:
+        # if calving_k is None:
         #    calving_k = cfg.PARAMS['calving_k']
         self.calving_k = calving_k / cfg.SEC_IN_YEAR
         if calving_use_limiter is None:
@@ -325,14 +325,16 @@ class FluxBasedModelWaterFront(FlowlineModel):
                                   (fl.bed_h < self.water_level))
 
             has_ice = np.any(fl.thick > min_l)
-                                  
+ 
+			# We compute more complex dynamics when we have ice below water 
             if has_ice and ice_above_wl and self.do_calving:
                 last_above_wl = np.nonzero((fl.surface_h > self.water_level) &
                                            (fl.bed_h < self.water_level) &
                                            (fl.thick > min_l))[0][-1]
                 # last_above_wl = np.nonzero((fl.surface_h > self.water_level) &
                                            # (fl.bed_h < self.water_level) &
-                                           # (fl.thick >= (self.rho_o/self.rho)*depth))[0][-1]
+                                           # (fl.thick >= (self.rho_o/self.rho)*
+                                           #  depth))[0][-1]
                 no_ice = np.nonzero((fl.thick < min_l))[0]
                 last_ice = np.where((fl.thick[no_ice-1] > min_l) & \
                                 (fl.surface_h[no_ice-1] > self.water_level))[0]
@@ -430,6 +432,7 @@ class FluxBasedModelWaterFront(FlowlineModel):
                 section_stag[[0, -1]] = section[[0, -1]]
                 section_stag[last_above_wl+1] = section[last_above_wl]
 
+			# Usual ice dynamics without water at the front
             else:
                 rhogh = (self.rho*G*slope_stag)**N
                 u_stag[:] = ((thick_stag**(N+1)) * self._fd * rhogh 
@@ -649,7 +652,8 @@ class FluxBasedModelWaterFront(FlowlineModel):
                 # Deal with surface height at front becoming too high because of
                 # elif above, i.e. when too much volume falls below flotation and
                 # is then accumulated in the "last" grid cell. Everything that 
-                # is higher than the previous grid point is therefore calved off.  
+                # is higher than the previous grid point is therefore
+				# redistributed at the front or calved off.
                 section = fl.section  
                 while ((last_above_wl+1 < len(fl.bed_h)) and 
                       (fl.surface_h[last_above_wl+1] > fl.surface_h[last_above_wl])

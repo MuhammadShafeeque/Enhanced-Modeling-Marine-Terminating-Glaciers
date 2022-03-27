@@ -483,6 +483,8 @@ def sia_thickness_via_optim_wt(slope, width, flux, rel_h, a_factor,
     slope : -np.gradient(hgt, dx)
     width : section width in m
     flux : mass flux in m3 s-1
+    rel_h : inverse of relativ heigth above buoancy
+    a_factor : stress factor related to hydrostatic force at terminus
     shape : 'rectangular', 'trapezoid' or 'parabolic'
     glen_a : Glen A, defaults to PARAMS
     fs : sliding, defaults to PARAMS
@@ -544,7 +546,7 @@ def sia_thickness_via_optim_wt(slope, width, flux, rel_h, a_factor,
     out_h, r = optimize.brentq(to_minimize, 0, max_h, full_output=True)
     return out_h
 
-def sia_thickness_wt(slope, width, flux, rel_h, a_factor, #water_depth, f_b,
+def sia_thickness_wt(slope, width, flux, rel_h, a_factor,
                      shape='rectangular', glen_a=None, fs=None, 
                      shape_factor=None):
     """Computes the ice thickness from mass-conservation.
@@ -557,6 +559,8 @@ def sia_thickness_wt(slope, width, flux, rel_h, a_factor, #water_depth, f_b,
     slope : -np.gradient(hgt, dx) (we don't clip for min slope!)
     width : section width in m
     flux : mass flux in m3 s-1
+    rel_h : inverse of relativ heigth above buoancy
+    a_factor : stress factor related to hydrostatic force at terminus
     shape : 'rectangular' or 'parabolic'
     glen_a : Glen A, defaults to PARAMS
     fs : sliding, defaults to PARAMS
@@ -595,7 +599,6 @@ def sia_thickness_wt(slope, width, flux, rel_h, a_factor, #water_depth, f_b,
     # Polynomial factors (a5 = 1)
     a0 = - flux_a0 / ((rho * cfg.G * slope * a_factor) ** 3 * fd)
     #a3 = fs / fd
-
     a3 = (fs / fd) * rel_h
 
     # Inversion with shape factors?
@@ -628,7 +631,8 @@ def sia_thickness_wt(slope, width, flux, rel_h, a_factor, #water_depth, f_b,
                  'convergence.'.format(shape_factor, i))
 
     return _compute_thick_wt(a0, a3, flux_a0, sf, _inv_function)
-    
+ 
+@entity_task(log, writes=['inversion_output']) 
 def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
                                    filesuffix='', water_level=None,
                                    t_lambda=None, min_rel_h=None):
@@ -655,6 +659,9 @@ def mass_conservation_inversion_wt(gdir, glen_a=None, fs=None, write=True,
     t_lambda : float
         defining the angle of the trapezoid walls (see documentation). Defaults
         to cfg.PARAMS.
+    min_rel_h : float
+        inverse of relative height above buoancy at the terminus given by
+        ice thickness inversion with calving
     """
 
     # Defaults
@@ -857,6 +864,8 @@ def inversion_tasks(gdirs, glen_a=None, fs=None, filter_inversion_output=True,
     ----------
     gdirs : list of :py:class:`oggm.GlacierDirectory` objects
         the glacier directories to process
+    ref_period : years of mass balance that should be taken into account in
+        inversion
     """
     
     if ref_period is None:
@@ -904,7 +913,7 @@ def inversion_tasks(gdirs, glen_a=None, fs=None, filter_inversion_output=True,
 
 @entity_task(log, writes=['inversion_flowlines'],
              fallback=climate._fallback_mu_star_calibration)
-def mu_star_calibration_from_geodetic_mb(gdir, 
+def mu_star_calibration_from_geodetic_mb(gdir,
                                          fa_data_path=None,
                                          ref_mb=None,
                                          ref_period='',
@@ -915,14 +924,18 @@ def mu_star_calibration_from_geodetic_mb(gdir,
                                          max_mu_star=None,
                                          corr_factor=0.75, unc='no'):
     """Compute the flowlines' mu* from the reference geodetic MB data.
+    
     This is similar to mu_star_calibration but using the reference geodetic
     MB data instead, and this does NOT compute the apparent mass-balance at
     the same time - users need to run apparent_mb_from_any_mb separately.
     Currently only works for single flowlines.
+    
     Parameters
     ----------
     gdir : :py:class:`oggm.GlacierDirectory`
         the glacier directory to process
+    fa_data_path : str
+        path to frontal ablation data used for calibration
     ref_mb : float
         the reference mass-balance to match (units: kg m-2 yr-1)
     ref_period : str, default: PARAMS['geodetic_mb_period']
@@ -936,7 +949,7 @@ def mu_star_calibration_from_geodetic_mb(gdir,
     max_mu_star: bool, optional
         defaults to cfg.PARAMS['max_mu_star']
     corr_factor: float
-        assumed fraction of volume change below water level
+        assumed fraction of volume change below water level in calibration data
     unc: string, optional
         flag for handling uncertainties in frontal ablation data to be able
         to find a value for mu
@@ -1011,9 +1024,9 @@ def mu_star_calibration_from_geodetic_mb(gdir,
     # Do we have a calving glacier?
     # cmb = calving_mb(gdir)
     # if cmb != 0:
-    #    raise NotImplementedError('Calving with geodetic MB is not implemented '
-    #                              'yet, but it should actually work. Well keep '
-    #                              'you posted!')
+    #     raise NotImplementedError('Calving with geodetic MB is not implemented '
+    #                               'yet, but it should actually work. Well keep '
+    #                               'you posted!')
     
     # Here we add the frontal ablation and mass changes below water level to
     # the mix, but it's dirty...
@@ -1188,9 +1201,11 @@ def mu_star_calibration_from_geodetic_mb(gdir,
 def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
                                        water_level=None, glen_a=None, fs=None):
     """Optimized search for a calving flux compatible with the bed inversion.
+    
     See Recinos et al 2019 for details. This task is an update to
     `find_inversion_calving` but acting upon a MB residual (i.e. a shift)
     instead of the model temperature sensitivity.
+    
     Parameters
     ----------
     mb_model : :py:class:`oggm.core.massbalance.MassBalanceModel`
@@ -1231,6 +1246,7 @@ def find_inversion_calving_from_any_mb(gdir, mb_model=None, mb_years=None,
     min_slope = np.deg2rad(cfg.PARAMS[min_slope])
     slope = utils.clip_array(slope, min_slope, np.pi / 2.)
 
+    # Find volume without water
     gdir.inversion_calving_rate = 0
     with utils.DisableLogger():
         climate.apparent_mb_from_any_mb(gdir, mb_model=mb_model,
