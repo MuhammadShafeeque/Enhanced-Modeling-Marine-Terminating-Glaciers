@@ -10,7 +10,7 @@ setup(
     author="Muhammad Shafeeque",
     author_email="shafeequ@uni-bremen.de",
     description="Enhanced modeling of marine-terminating glaciers for OGGM",
-    long_description=read('README.md'),
+    long_description=read("README.md"),
     long_description_content_type="text/markdown",
     url="https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers",
     packages=find_packages(),
@@ -31,7 +31,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Topic :: Scientific/Engineering :: Glaciology",
-        "Topic :: Scientific/Engineering :: Climate Change",
+        "Topic :: Scientific/Engineering :: Atmospheric Science",
     ],
     python_requires=">=3.7",
 )
