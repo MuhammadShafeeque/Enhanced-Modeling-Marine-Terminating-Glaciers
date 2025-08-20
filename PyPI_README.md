@@ -1,7 +1,7 @@
 # oggm_marine_terminating
 
-[![Python Package](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/actions/workflows/python-package.yml/badge.svg)](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/actions/workflows/python-package.yml)
 [![PyPI version](https://badge.fury.io/py/oggm-marine-terminating.svg)](https://badge.fury.io/py/oggm-marine-terminating)
+[![GitHub](https://img.shields.io/badge/GitHub-Shafeeque_Branch-blue.svg)](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/tree/Shafeeque)
 
 ## Installation
 
@@ -32,4 +32,4 @@ model = FluxBasedModelMarineFront(flowlines, mb_model=mb_model, y0=0.,
                                  fs=0., glen_a=glen_a, water_level=water_level)
 ```
 
-For more detailed usage examples, please refer to the [full documentation](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers).
+For more detailed usage examples, please refer to the [full documentation](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/tree/Shafeeque).
