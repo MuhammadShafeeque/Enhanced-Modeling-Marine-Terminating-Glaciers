@@ -10,6 +10,7 @@ authors = [
 ]
 description = "Enhanced modeling of marine-terminating glaciers for OGGM"
 readme = "README.md"
+license = {text = "BSD-3-Clause"}
 requires-python = ">=3.7"
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -19,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
-    "Topic :: Scientific/Engineering :: Glaciology",
+    "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Atmospheric Science",
 ]
 
