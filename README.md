@@ -1,6 +1,6 @@
 ﻿# Enhanced Modeling of Marine-Terminating Glaciers
 
-[![Python Package](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/actions/workflows/python-package.yml/badge.svg)](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/actions/workflows/python-package.yml)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/blob/main/LICENSE.txt)
 [![PyPI version](https://badge.fury.io/py/oggm-marine-terminating.svg)](https://badge.fury.io/py/oggm-marine-terminating)
 
 ## Overview
