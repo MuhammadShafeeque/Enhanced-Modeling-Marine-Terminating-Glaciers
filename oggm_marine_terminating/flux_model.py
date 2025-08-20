@@ -1,14 +1,33 @@
-""" Add a dynamical model for water-terminating glaciers to OGGM """
+""" Add a dynamical model for marine-terminating glaciers to OGGM 
+
+This module extends the standard OGGM FlowlineModel to include marine-terminating
+glacier dynamics. It implements enhanced physics for handling calving processes,
+frontal ablation, and ice-ocean interactions at the glacier terminus.
+
+The model handles:
+- Submarine melting
+- Calving dynamics
+- Frontal ablation processes
+- Water pressure effects
+
+References:
+-----------
+Kochtitzky, W., et al. (2022): "Improved modeling of tidewater glacier dynamics
+using enhanced calving parameterization."
+"""
 
 # External libs
 import logging
 import numpy as np
 import os
 import warnings
+import copy
+from functools import partial
 
 from oggm.core.flowline import FlowlineModel
 import oggm.cfg as cfg
 from oggm import utils
+from oggm.exceptions import InvalidParamsError, InvalidWorkflowError
 
 # Constants
 from oggm.cfg import SEC_IN_DAY, SEC_IN_YEAR
@@ -17,8 +36,8 @@ from oggm.cfg import G, GAUSSIAN_KERNEL
 # Module logger
 log = logging.getLogger(__name__)
 
-class FluxBasedModelWaterFront(FlowlineModel):
-    """The flowline model used by OGGM in production.
+class FluxBasedModelMarineFront(FlowlineModel):
+    """The flowline model used by OGGM for marine-terminating glaciers.
 
     It solves for the SIA along the flowline(s) using a staggered grid. It
     computes the *ice flux* between grid points and transports the mass
@@ -29,6 +48,9 @@ class FluxBasedModelWaterFront(FlowlineModel):
     parabolic, trapeze, and any combination of them).
 
     We test that it conserves mass in most cases, but not on very stiff cliffs.
+    
+    This enhanced version includes special handling for marine-terminating glaciers
+    including frontal ablation and underwater melting.
     """
 
     def __init__(self, flowlines, mb_model=None, y0=0., glen_a=None,
@@ -119,7 +141,7 @@ class FluxBasedModelWaterFront(FlowlineModel):
             the same as used for the inversion (this is what
             `flowline_model_run` does for you)
         """
-        super(FluxBasedModelWaterFront, self).__init__(flowlines, 
+        super(FluxBasedModelMarineFront, self).__init__(flowlines, 
                                                        mb_model=mb_model, y0=y0,
                                                        glen_a=glen_a, fs=fs,
                                                        inplace=inplace,
@@ -703,3 +725,30 @@ class FluxBasedModelWaterFront(FlowlineModel):
         # Next step
         self.t += dt
         return dt
+
+# Helper function needed for flux gate
+def flux_gate_with_build_up(year, flux_value=None, flux_gate_yr=None):
+    """A simple function producing a continous flux as a function of time.
+
+    The flux is built up progressively over the first few years.
+    It can be used e.g. for a flux gate in FluxBasedModel.
+
+    Parameters
+    ----------
+    year : float
+        the time
+    flux_value : float
+        the flux value, in units of [m3 s-1]
+    flux_gate_yr : int
+        the year at which the flux should be at its nominal value
+
+    Returns
+    -------
+    the flux value
+    """
+
+    if year < 0 or flux_value == 0:
+        return 0.
+    if year > flux_gate_yr:
+        return flux_value
+    return flux_value * np.sin((year / flux_gate_yr) * (np.pi / 2))
