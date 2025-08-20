@@ -35,11 +35,11 @@ The model utilizes several datasets:
 
 ## Requirements
 
-- OGGM >=1.6.0 (Open Global Glacier Model)
-- NumPy >=1.17.0
-- SciPy >=1.3.0
-- Pandas >=1.0.0
-- Matplotlib >=3.1.0 (for visualization)
+- OGGM >=1.5.3 (Open Global Glacier Model)
+- NumPy
+- SciPy
+- Pandas
+- Matplotlib (for visualization)
 
 ## Usage
 
