@@ -31,7 +31,7 @@ Malles J-H, Maussion F, Ultee L, Kochtitzky W, Copland L, Marzeion B. Exploring 
 
 ## Requirements
 
-- OGGM >=1.5.3 (Open Global Glacier Model)
+- OGGM = 1.5.3 (Open Global Glacier Model)
 - NumPy
 - SciPy
 - Pandas
