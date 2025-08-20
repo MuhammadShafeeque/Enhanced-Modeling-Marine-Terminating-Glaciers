@@ -16,7 +16,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "oggm>=1.6.0",
+        "oggm>=1.5.3",
         "numpy>=1.17.0",
         "scipy>=1.3.0",
         "pandas>=1.0.0",

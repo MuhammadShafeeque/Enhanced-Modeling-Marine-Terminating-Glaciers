@@ -1,0 +1,5 @@
+include LICENSE.txt
+include README.md
+include config.ini
+recursive-include input_data *.csv
+recursive-include oggm_marine_terminating *.py
