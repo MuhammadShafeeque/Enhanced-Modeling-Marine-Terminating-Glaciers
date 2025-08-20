@@ -19,13 +19,6 @@ Malles J-H, Maussion F, Ultee L, Kochtitzky W, Copland L, Marzeion B. Exploring 
 - Water pressure effects modeling
 - Height-above-buoyancy model implementation
 
-## Data
-
-The model utilizes several datasets:
-
-- Frontal ablation data (`input_data/fa_data_will.csv`)
-- Northern hemisphere frontal ablation data by Kochtitzky et al. (`input_data/Northern_hemisphere_frontal_ablation_Kochtitzky_et_al_for_Jan_v4_20Dec2021.csv`)
-
 ## Structure
 
 - `oggm_marine_terminating/`: Python package implementing enhanced models for marine-terminating glaciers
