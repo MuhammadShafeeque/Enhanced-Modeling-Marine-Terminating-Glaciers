@@ -55,7 +55,7 @@ If you want to use the enhanced functions for marine-terminating glaciers with O
 Install directly from GitHub using pip:
 
 ```bash
-pip install git+https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers.git
+pip install git+https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers.git@Shafeeque
 ```
 
 Or clone the repository and install in development mode:
@@ -63,6 +63,7 @@ Or clone the repository and install in development mode:
 ```bash
 git clone https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers.git
 cd Enhanced-Modeling-Marine-Terminating-Glaciers
+git checkout Shafeeque
 pip install -e .
 ```
 
@@ -75,7 +76,7 @@ This project is licensed under the terms of the LICENSE.txt file included in thi
 If you use this code in your research, please cite:
 
 1. The original implementation:
-   - Malles, J.-H., Maussion, F., Jarosch, A., Vis, M., & Kochtitzky, W. (2023). Extending the Open Global Glacier Model for simulating the transient evolution of tidewater glaciers. *Journal of Glaciology*, 69(275), 644-656. [DOI: 10.1017/jog.2023.19](https://doi.org/10.1017/jog.2023.19)
+   - Malles J-H, Maussion F, Ultee L, Kochtitzky W, Copland L, Marzeion B. Exploring the impact of a frontal ablation parameterization on projected 21st-century mass change for Northern Hemisphere glaciers. Journal of Glaciology. 2023;69(277):1317-1332. [DOI: 10.1017/jog.2023.19](https://doi.org/10.1017/jog.2023.19)
 
 2. The OGGM framework:
    - Maussion, F., Butenko, A., Champollion, N., Dusch, M., Eis, J., Fourteau, K., Gregor, P., Jarosch, A. H., Landmann, J., Oesterle, F., Recinos, B., Rothenpieler, T., Vlug, A., Wild, C. T., and Marzeion, B. (2019). The Open Global Glacier Model (OGGM) v1.1. *Geoscientific Model Development*, 12(3), 909–931. [DOI: 10.5194/gmd-12-909-2019](https://doi.org/10.5194/gmd-12-909-2019)
