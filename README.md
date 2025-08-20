@@ -8,7 +8,7 @@ This repository contains a specialized module for modeling marine-terminating gl
 
 This project is built upon the original work from [water_terminating_module](https://github.com/jmalles/water_terminating_module) by Jan-Hendrik Malles et al. The implementation is based on the methodology described in:
 
-Malles J-H, Maussion F, Ultee L, Kochtitzky W, Copland L, Marzeion B. Exploring the impact of a frontal ablation parameterization on projected 21st-century mass change for Northern Hemisphere glaciers. Journal of Glaciology. 2023;69(277):1317-1332. doi:10.1017/jog.2023.19(https://doi.org/10.1017/jog.2023.19)
+Malles J-H, Maussion F, Ultee L, Kochtitzky W, Copland L, Marzeion B. Exploring the impact of a frontal ablation parameterization on projected 21st-century mass change for Northern Hemisphere glaciers. Journal of Glaciology. 2023;69(277):1317-1332. [doi:10.1017/jog.2023.19](https://doi.org/10.1017/jog.2023.19)
 
 ## Features
 
