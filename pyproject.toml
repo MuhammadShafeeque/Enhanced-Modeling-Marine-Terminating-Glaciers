@@ -37,3 +37,6 @@ dependencies = [
 
 [tool.setuptools]
 packages = ["oggm_marine_terminating"]
+
+[tool.setuptools.name-normalization]
+normalize = false

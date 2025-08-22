@@ -1,7 +1,7 @@
 ﻿# Enhanced Modeling of Marine-Terminating Glaciers
 
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/blob/main/LICENSE.txt)
-[![PyPI version](https://badge.fury.io/py/oggm-marine-terminating.svg)](https://badge.fury.io/py/oggm-marine-terminating)
+[![PyPI version](https://badge.fury.io/py/oggm_marine_terminating.svg)](https://pypi.org/project/oggm-marine-terminating/)
 
 ## Overview
 
