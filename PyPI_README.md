@@ -1,7 +1,7 @@
 # oggm_marine_terminating
 
 [![PyPI version](https://badge.fury.io/py/oggm-marine-terminating.svg)](https://badge.fury.io/py/oggm-marine-terminating)
-[![GitHub](https://img.shields.io/badge/GitHub-Shafeeque_Branch-blue.svg)](https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers/tree/Shafeeque)
+[![GitHub](https://img.shields.io/badge/GitHub-Shafeeque_Branch-blue.svg)](https://github.com/MuhammadShafeeque/Enhanced-Modeling_Marine_Terminating_Glaciers/tree/Shafeeque)
 
 ## Installation
 

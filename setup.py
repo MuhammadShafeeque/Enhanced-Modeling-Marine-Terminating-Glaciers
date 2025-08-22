@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name="oggm_marine_terminating",
-    version="0.1.0",
+    version="0.1.1",
     author="Muhammad Shafeeque",
     author_email="shafeequ@uni-bremen.de",
     description="Enhanced modeling of marine-terminating glaciers for OGGM",
@@ -16,7 +16,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "oggm>=1.5.3",
+        "oggm==1.5.3",
         "numpy>=1.17.0",
         "scipy>=1.3.0",
         "pandas>=1.0.0",

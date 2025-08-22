@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oggm_marine_terminating"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     {name = "Muhammad Shafeeque", email = "shafeequ@uni-bremen.de"},
 ]
@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "oggm>=1.5.3",
+    "oggm==1.5.3",
     "numpy>=1.17.0",
     "scipy>=1.3.0",
     "pandas>=1.0.0",
@@ -37,6 +37,3 @@ dependencies = [
 
 [tool.setuptools]
 packages = ["oggm_marine_terminating"]
-
-[tool.setuptools.name-normalization]
-normalize = false

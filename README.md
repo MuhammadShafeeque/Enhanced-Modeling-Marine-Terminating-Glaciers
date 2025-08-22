@@ -32,10 +32,10 @@ Malles J-H, Maussion F, Ultee L, Kochtitzky W, Copland L, Marzeion B. Exploring 
 ## Requirements
 
 - OGGM = 1.5.3 (Open Global Glacier Model)
-- NumPy
-- SciPy
-- Pandas
-- Matplotlib (for visualization)
+- NumPy >= 1.17.0
+- SciPy >= 1.3.0
+- Pandas >= 1.0.0
+- Matplotlib >= 3.1.0 (for visualization)
 
 ## Usage
 
@@ -64,7 +64,7 @@ pip install oggm-marine-terminating
 Install directly from GitHub using pip:
 
 ```bash
-pip install git+https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers.git@Shafeeque
+pip install git+https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers.git
 ```
 
 Or clone the repository and install in development mode:
@@ -72,7 +72,6 @@ Or clone the repository and install in development mode:
 ```bash
 git clone https://github.com/MuhammadShafeeque/Enhanced-Modeling-Marine-Terminating-Glaciers.git
 cd Enhanced-Modeling-Marine-Terminating-Glaciers
-git checkout Shafeeque
 pip install -e .
 ```
 
